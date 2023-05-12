@@ -1,5 +1,6 @@
 from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow import DAG
+from airflow.utils.trigger_rule import TriggerRule
 
 from datetime import datetime
 
@@ -52,9 +53,10 @@ with DAG(
     print_to_console = PythonOperator(
         task_id="print_to_console",
         python_callable=_print_to_console,
-        op_args={"filename": file_creation_development.xcom_pull})
+        op_args={"filename": "{{ task_instance.xcom_pull(task_ids=['file_creation_production','file_creation_development']) }}"},
+        trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
+        )
     
     
-    # environment_branch >> ["file_creation_development", "file_creation_production"]
-    # ["file_creation_development"] >> print_to_console
-    # ["file_creation_production"] >> print_to_console
+    environment_branch >> file_creation_development >> print_to_console
+    environment_branch >> file_creation_production >> print_to_console
